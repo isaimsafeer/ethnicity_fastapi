@@ -1,0 +1,56 @@
+# Node-related
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.pnpm-debug.log
+
+# Python-related
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+env/
+venv/
+.venv/
+
+# Build output
+dist/
+build/
+*.log
+*.tmp
+*.swp
+
+# OS & editor junk
+.DS_Store
+Thumbs.db
+ehthumbs.db
+*.bak
+*.old
+
+# Git & VCS
+.git
+.gitignore
+.gitattributes
+
+# Docker-related
+Dockerfile
+.dockerignore
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Tests & docs (optional if not needed in production)
+tests/
+docs/
+coverage/
+*.test.*
+*.spec.*
+
+# Misc
+*.zip
+*.tar.gz
+*.rar
