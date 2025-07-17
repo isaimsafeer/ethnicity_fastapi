@@ -6,33 +6,26 @@ from PIL import Image
 from torchvision import transforms, datasets
 from facenet_pytorch import MTCNN
 from model import EthnicityModel
-
+from datetime import datetime
 
 # Setup device and detector
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 detector = MTCNN(min_face_size=50,thresholds=[0.8, 0.9, 0.9],keep_all=False, device=device)
 
-def classify_ethnicity(image_path, model, ethnicity_labels, face_size_threshold=20, device=None):
+def classify_ethnicity(image_path, model, ethnicity_labels, face_size_threshold=20, device=None, save_dir="detected_images"):
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     try:
         img = cv2.imread(image_path)
         if img is None:
             return "Error: Could not read image"
 
         rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        # Detect face
         try:
             boxes, probs, landmarks = detector.detect(rgb_img, landmarks=True)
-
-            # Newly added
-            # landmarks = np.array(landmarks, dtype=np.float32)
-            # if landmarks is None or not isinstance(landmarks, np.ndarray):
-            #     return f"No landmarks returned → skipping"
-            # if np.isnan(landmarks).any():
-            #     return f"Landmarks contain NaNs → skipping"
-
-
-
         except Exception as e:
             return f"Error in MTCNN detection: {e}"
 
@@ -51,10 +44,13 @@ def classify_ethnicity(image_path, model, ethnicity_labels, face_size_threshold=
         if width < face_size_threshold or height < face_size_threshold:
             return f"Detected face too small: {width}x{height}"
 
-        # Visualization
+        # Visualization - Save to `save_dir`
+        os.makedirs(save_dir, exist_ok=True)
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
+        vis_filename = f"{timestamp}_detected_face.jpg"
+        vis_path = os.path.join(save_dir, vis_filename)
         vis_img = img.copy()
         cv2.rectangle(vis_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        vis_path = "detected_face.jpg"
         cv2.imwrite(vis_path, vis_img)
 
         # Crop & resize
@@ -65,17 +61,6 @@ def classify_ethnicity(image_path, model, ethnicity_labels, face_size_threshold=
         y2m = min(img.shape[0], y2 + margin)
         face_img = img[y1m:y2m, x1m:x2m]
         face_img = cv2.resize(face_img, (128, 128))
-
-
-        # # newly added
-        # # Blurriness check using Laplacian variance
-        # gray_face = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
-        # blur_score = cv2.Laplacian(gray_face, cv2.CV_64F).var()
-        # if blur_score < 75:  # Adjust threshold if needed
-        #     return f"Face is too blurry to classify (score={blur_score:.2f})"
-        #
-
-
         face_img = cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB)
 
         # To tensor
@@ -91,17 +76,14 @@ def classify_ethnicity(image_path, model, ethnicity_labels, face_size_threshold=
         with torch.no_grad():
             outputs = model(face_tensor)
             probabilities = torch.nn.functional.softmax(outputs, dim=1)
-
             confidence, predicted_class = torch.max(probabilities, 1)
             confidence = confidence.item()
             predicted_class = predicted_class.item()
-            # Convert probabilities to a dict of class labels and their probabilities
-            prob_list = probabilities.squeeze().tolist()
+
             all_probabilities = {
                 ethnicity_labels.get(idx, f"class_{idx}"): float(prob)
-                for idx, prob in enumerate(prob_list)
+                for idx, prob in enumerate(probabilities.squeeze().tolist())
             }
-
 
         ethnicity = ethnicity_labels.get(predicted_class, "Unknown")
         return {
@@ -115,6 +97,7 @@ def classify_ethnicity(image_path, model, ethnicity_labels, face_size_threshold=
 
     except Exception as e:
         return f"Error processing image: {str(e)}"
+
 
 # # ---------- Main Inference Runner ----------
 #

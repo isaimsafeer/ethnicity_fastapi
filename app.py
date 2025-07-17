@@ -8,6 +8,8 @@ import io
 from pathlib import Path
 from model import EthnicityModel
 from inference import classify_ethnicity
+from datetime import datetime
+import os
 
 app = FastAPI()
 
@@ -38,6 +40,10 @@ else:
 model.to(device)
 model.eval()
 
+# Ensure the output directory exists
+SAVE_DIR = "detected_images"
+os.makedirs(SAVE_DIR, exist_ok=True)
+
 @app.post("/predict/")
 async def predict_ethnicity(file: UploadFile = File(...)):
     if file.content_type not in ["image/jpeg", "image/png"]:
@@ -47,18 +53,28 @@ async def predict_ethnicity(file: UploadFile = File(...)):
     contents = await file.read()
     image = cv2.imdecode(np.frombuffer(contents, np.uint8), cv2.IMREAD_COLOR)
 
-    # Save temporarily (or adapt classify_ethnicity to accept OpenCV image directly)
-    temp_path = "temp_uploaded_image.jpg"
-    cv2.imwrite(temp_path, image)
+    if image is None:
+        raise HTTPException(status_code=400, detail="Could not decode image.")
 
-    result = classify_ethnicity(temp_path, model, ethnicity_labels, device=device)
+    # Generate unique filename
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
+    filename = f"{timestamp}_{file.filename}"
+    save_path = os.path.join(SAVE_DIR, filename)
+
+    # Save image
+    cv2.imwrite(save_path, image)
+
+    # Run prediction
+    result = classify_ethnicity(save_path, model, ethnicity_labels, device=device, save_dir=SAVE_DIR)
+
 
     if isinstance(result, dict):
         return JSONResponse(content={
             "ethnicity": result["ethnicity"],
             "confidence": result["confidence"],
             "face_confidence": result["face_confidence"],
-            "all_probabilities": result.get("all_probabilities", {})
+            "all_probabilities": result.get("all_probabilities", {}),
+            "saved_path": save_path
         })
     else:
         raise HTTPException(status_code=400, detail=result)
