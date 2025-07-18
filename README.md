@@ -38,7 +38,7 @@ Project structure
 bash
 Copy
 Edit
-├── main.py                 # FastAPI app
+├── app.py                 # FastAPI app
 ├── model.py                # Model architecture (EthnicityModel)
 ├── inference.py            # classify_ethnicity() function
 ├── Model/
@@ -50,7 +50,7 @@ Run the server
 bash
 Copy
 Edit
-uvicorn main:app --reload
+uvicorn app:app --reload
 Access the API Docs
 
 Open your browser and go to: http://127.0.0.1:8000/docs
